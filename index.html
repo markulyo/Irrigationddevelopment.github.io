@@ -6,6 +6,10 @@
     <title>NIA MIMAROPA Irrigation Systems WebGIS</title>
     <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
     <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js'></script>
     <style>
         * {
             margin: 0;
@@ -219,6 +223,117 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        .analysis-panel {
+            position: absolute;
+            top: 120px;
+            right: 60px;
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            width: 260px;
+            z-index: 1;
+        }
+
+        .analysis-panel h3 {
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 16px;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+        }
+
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .tool-btn:active { transform: scale(0.97); }
+
+        .btn-upload {
+            background: #3498db;
+            color: white;
+        }
+        .btn-upload:hover { background: #2980b9; }
+
+        .btn-draw {
+            background: #9b59b6;
+            color: white;
+        }
+        .btn-draw:hover { background: #8e44ad; }
+        .btn-draw.active {
+            background: #e74c3c;
+        }
+
+        .btn-clear {
+            background: #ecf0f1;
+            color: #7f8c8d;
+        }
+        .btn-clear:hover { background: #dfe6e9; }
+
+        #kml-file-input { display: none; }
+
+        .kml-filename {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            word-break: break-all;
+        }
+
+        .results-panel {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #ecf0f1;
+            display: none;
+        }
+
+        .results-panel.visible { display: block; }
+
+        .results-panel h4 {
+            font-size: 14px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .overlap-item {
+            padding: 8px 10px;
+            border-radius: 5px;
+            margin: 4px 0;
+            font-size: 13px;
+        }
+
+        .overlap-hit {
+            background: #ffeaa7;
+            border-left: 3px solid #f39c12;
+            color: #2c3e50;
+        }
+
+        .overlap-none {
+            background: #dfe6e9;
+            color: #7f8c8d;
+            font-style: italic;
+            padding: 8px 10px;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .overlap-count {
+            font-weight: bold;
+            color: #e74c3c;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
@@ -237,16 +352,6 @@
     <div class="control-panel">
         <h3>Layer Controls</h3>
         
-        <div class="layer-control">
-            <div class="layer-item">
-                <input type="checkbox" id="provinces-toggle" checked>
-                <label for="provinces-toggle">
-                    <div class="color-box" style="background: transparent; border: 2px solid #3498db;"></div>
-                    Province Boundaries
-                </label>
-            </div>
-        </div>
-
         <h3 style="margin-top: 20px;">National Irrigation Systems</h3>
         <div class="layer-control">
             <div class="layer-item">
@@ -333,20 +438,46 @@
             </div>
         </div>
 
-        <div class="stats-panel">
-            <h3>Statistics</h3>
-            <div class="stat-item">
-                <span class="stat-label">NIS Provinces:</span>
-                <span class="stat-value">4 of 5</span>
+        <h3 style="margin-top: 20px;">NET PIA Layers</h3>
+        <div class="layer-control">
+            <div class="layer-item">
+                <input type="checkbox" id="net-pia-0-3-toggle" class="net-pia-filter" data-range="0-3" checked>
+                <label for="net-pia-0-3-toggle">
+                    <div class="color-box" style="background: rgba(52, 152, 219, 0.6);"></div>
+                    NET PIA 0-3
+                </label>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">CIS Provinces:</span>
-                <span class="stat-value">5 of 5</span>
+            <div class="layer-item">
+                <input type="checkbox" id="net-pia-3-8-toggle" class="net-pia-filter" data-range="3-8" checked>
+                <label for="net-pia-3-8-toggle">
+                    <div class="color-box" style="background: rgba(241, 196, 15, 0.6);"></div>
+                    NET PIA 3-8
+                </label>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Data Source:</span>
-                <span class="stat-value">Mapbox Tilesets</span>
-            </div>
+        </div>
+    </div>
+
+    <input type="file" id="kml-file-input" accept=".kml">
+
+    <div class="analysis-panel">
+        <h3>🔍 Overlap Analysis</h3>
+
+        <button class="tool-btn btn-upload" id="btn-upload-kml">
+            📂 Upload KML
+        </button>
+        <div class="kml-filename" id="kml-filename"></div>
+
+        <button class="tool-btn btn-draw" id="btn-draw-polygon">
+            ✏️ Draw Polygon
+        </button>
+
+        <button class="tool-btn btn-clear" id="btn-clear">
+            🗑️ Clear All
+        </button>
+
+        <div class="results-panel" id="results-panel">
+            <h4>Overlapping Features</h4>
+            <div id="results-content"></div>
         </div>
     </div>
 
@@ -361,8 +492,12 @@
             <span>Communal Irrigation System</span>
         </div>
         <div class="legend-item">
-            <div class="legend-color" style="background: transparent; border: 2px solid #3498db;"></div>
-            <span>Province Boundary</span>
+            <div class="legend-color" style="background: rgba(52, 152, 219, 0.6);"></div>
+            <span>NET PIA 0-3</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background: rgba(241, 196, 15, 0.6);"></div>
+            <span>NET PIA 3-8</span>
         </div>
     </div>
 
@@ -373,7 +508,7 @@
         // Mapbox Tileset IDs for each province
         const TILESET_IDS = {
             nis: {
-                'Mindoro Occidental': 'markulyo.4b5ztaug',
+                'Mindoro Occidental': 'markulyo.7u87r28n03yj',
                 'Mindoro Oriental': 'markulyo.1eo6ympw',
                 'Marinduque': null, // No data provided
                 'Romblon': 'markulyo.wa3526p3re98',
@@ -385,6 +520,10 @@
                 'Marinduque': 'markulyo.9j3zu102mde2',
                 'Romblon': 'markulyo.q3z0bqf04hsl',
                 'Palawan': 'markulyo.1po8cpyssdt3'
+            },
+            net_pia: {
+                '0-3': null,  // Add tileset ID when available
+                '3-8': null   // Add tileset ID when available
             }
         };
 
@@ -396,67 +535,15 @@
             pitch: 0
         });
 
-        // Province boundaries (simplified)
-        const provinceBoundaries = {
-            type: 'FeatureCollection',
-            features: [
-                {
-                    type: 'Feature',
-                    properties: { name: 'Mindoro Occidental' },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [120.4, 13.6], [121.1, 13.6], [121.1, 12.3], [120.4, 12.3], [120.4, 13.6]
-                        ]]
-                    }
-                },
-                {
-                    type: 'Feature',
-                    properties: { name: 'Mindoro Oriental' },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [121.0, 13.5], [121.65, 13.5], [121.65, 12.4], [121.0, 12.4], [121.0, 13.5]
-                        ]]
-                    }
-                },
-                {
-                    type: 'Feature',
-                    properties: { name: 'Marinduque' },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [121.75, 13.55], [122.1, 13.55], [122.1, 13.15], [121.75, 13.15], [121.75, 13.55]
-                        ]]
-                    }
-                },
-                {
-                    type: 'Feature',
-                    properties: { name: 'Romblon' },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [121.85, 12.75], [122.4, 12.75], [122.4, 12.15], [121.85, 12.15], [121.85, 12.75]
-                        ]]
-                    }
-                },
-                {
-                    type: 'Feature',
-                    properties: { name: 'Palawan' },
-                    geometry: {
-                        type: 'Polygon',
-                        coordinates: [[
-                            [117.5, 12.2], [120.5, 12.2], [120.5, 7.5], [117.5, 7.5], [117.5, 12.2]
-                        ]]
-                    }
-                }
-            ]
-        };
+        // Persistent tileset (municipal boundary — always visible)
+        const PERSISTENT_TILESET = 'markulyo.fhp70itovkiv';
+        let persistentRegistered = false;
 
         // Track loaded layers
         const loadedLayers = {
             nis: [],
-            cis: []
+            cis: [],
+            net_pia: []
         };
 
         // Function to get source layer name from tileset
@@ -489,128 +576,146 @@
             return fallback;
         }
 
+        // Field name overrides for popups
+        const FIELD_LABELS = {
+            'NAME_2': 'Municipality',
+            'name_2': 'Municipality'
+        };
+
+        function formatFieldLabel(key) {
+            return FIELD_LABELS[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        // Store all layer configs so they can be re-added after style reload
+        const layerRegistry = []; // { sourceId, tilesetId, sourceLayer, layers: [...], type, province }
+
+        function addLayerSetToMap(entry) {
+            // Add source if missing
+            if (!map.getSource(entry.sourceId)) {
+                map.addSource(entry.sourceId, {
+                    type: 'vector',
+                    url: `mapbox://${entry.tilesetId}`
+                });
+            }
+            // Add each layer if missing
+            entry.layers.forEach(layerDef => {
+                if (!map.getLayer(layerDef.id)) {
+                    map.addLayer(layerDef);
+                }
+                // Restore visibility from checkbox state
+                if (layerDef.metadata && layerDef.metadata.type) {
+                    const type = layerDef.metadata.type;
+                    const province = layerDef.metadata.province;
+                    const selector = `.${type}-province-filter[data-province="${province}"]`;
+                    const cb = document.querySelector(selector);
+                    if (cb) {
+                        map.setLayoutProperty(layerDef.id, 'visibility', cb.checked ? 'visible' : 'none');
+                    }
+                }
+            });
+        }
+
+        // Re-add ALL layers on every style reload (basemap switch, etc.)
+        map.on('style.load', () => {
+            layerRegistry.forEach(entry => addLayerSetToMap(entry));
+        });
+
         map.on('load', async () => {
             document.getElementById('loading').classList.add('active');
 
+            // Register and add the persistent municipal boundary layer
+            if (!persistentRegistered) {
+                const sourceLayer = await getSourceLayerName(PERSISTENT_TILESET);
+                console.log(`🗺️ Municipal boundary source layer resolved: "${sourceLayer}"`);
+                const persistentEntry = {
+                    sourceId: 'persistent-layer',
+                    tilesetId: PERSISTENT_TILESET,
+                    sourceLayer,
+                    layers: [
+                        {
+                            id: 'persistent-layer-outline',
+                            type: 'line',
+                            source: 'persistent-layer',
+                            'source-layer': sourceLayer,
+                            paint: { 'line-color': '#00ff00', 'line-width': 2 }
+                        },
+                        {
+                            id: 'persistent-layer-label',
+                            type: 'symbol',
+                            source: 'persistent-layer',
+                            'source-layer': sourceLayer,
+                            layout: {
+                                'text-field': ['get', 'NAME_2'],
+                                'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
+                                'text-size': 12,
+                                'text-anchor': 'center',
+                                'text-allow-overlap': false
+                            },
+                            paint: {
+                                'text-color': '#ffffff',
+                                'text-halo-color': '#000000',
+                                'text-halo-width': 1.5
+                            }
+                        }
+                    ]
+                };
+                layerRegistry.push(persistentEntry);
+                addLayerSetToMap(persistentEntry);
+                persistentRegistered = true;
+            }
+
             console.log('=== LOADING TILESETS ===');
-            console.log('If layers don\'t appear, check the source layer names below:');
-
-            // Add province boundaries
-            map.addSource('provinces', {
-                type: 'geojson',
-                data: provinceBoundaries
-            });
-
-            map.addLayer({
-                id: 'provinces-fill',
-                type: 'fill',
-                source: 'provinces',
-                paint: {
-                    'fill-color': 'transparent'
-                }
-            });
-
-            map.addLayer({
-                id: 'provinces-outline',
-                type: 'line',
-                source: 'provinces',
-                paint: {
-                    'line-color': '#3498db',
-                    'line-width': 2,
-                    'line-dasharray': [2, 2]
-                }
-            });
 
             // Load NIS tilesets
             for (const [province, tilesetId] of Object.entries(TILESET_IDS.nis)) {
                 if (tilesetId) {
                     try {
-                        console.log(`\n🏗️  Loading NIS for ${province}`);
                         const sourceId = `nis-${province.toLowerCase().replace(/\s+/g, '-')}`;
                         const layerFillId = `${sourceId}-fill`;
                         const layerOutlineId = `${sourceId}-outline`;
-
-                        // Get the correct source layer name
                         const sourceLayer = await getSourceLayerName(tilesetId);
-                        console.log(`📊 NIS ${province}: tileset=${tilesetId}, source-layer=${sourceLayer}`);
 
-                        // Add source
-                        map.addSource(sourceId, {
-                            type: 'vector',
-                            url: `mapbox://${tilesetId}`
-                        });
-                        console.log(`✅ Added source: ${sourceId}`);
-
-                        // Add fill layer
-                        map.addLayer({
-                            id: layerFillId,
-                            type: 'fill',
-                            source: sourceId,
-                            'source-layer': sourceLayer,
-                            paint: {
-                                'fill-color': '#e74c3c',
-                                'fill-opacity': 0.6
+                        const layerDefs = [
+                            {
+                                id: layerFillId,
+                                type: 'fill',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'fill-color': '#e74c3c', 'fill-opacity': 0.6 },
+                                metadata: { province, type: 'nis' }
                             },
-                            metadata: {
-                                province: province,
-                                type: 'nis'
+                            {
+                                id: layerOutlineId,
+                                type: 'line',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'line-color': '#c0392b', 'line-width': 2 },
+                                metadata: { province, type: 'nis' }
                             }
-                        });
-                        console.log(`✅ Added fill layer: ${layerFillId}`);
+                        ];
 
-                        // Add outline layer
-                        map.addLayer({
-                            id: layerOutlineId,
-                            type: 'line',
-                            source: sourceId,
-                            'source-layer': sourceLayer,
-                            paint: {
-                                'line-color': '#c0392b',
-                                'line-width': 2
-                            },
-                            metadata: {
-                                province: province,
-                                type: 'nis'
-                            }
-                        });
-                        console.log(`✅ Added outline layer: ${layerOutlineId}`);
+                        const entry = { sourceId, tilesetId, sourceLayer, layers: layerDefs, type: 'nis', province };
+                        layerRegistry.push(entry);
+                        addLayerSetToMap(entry);
 
-                        loadedLayers.nis.push({
-                            province: province,
-                            fillId: layerFillId,
-                            outlineId: layerOutlineId
-                        });
+                        loadedLayers.nis.push({ province, fillId: layerFillId, outlineId: layerOutlineId });
 
-                        // Add click event
                         map.on('click', layerFillId, (e) => {
                             if (!e.features || e.features.length === 0) return;
                             const properties = e.features[0].properties;
-                            
                             let html = '<div class="popup-title">National Irrigation System</div>';
                             html += `<div class="popup-info"><span class="popup-label">Province:</span> ${province}</div>`;
-                            
                             for (const [key, value] of Object.entries(properties)) {
                                 if (value && key !== 'id') {
-                                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    const label = formatFieldLabel(key);
                                     html += `<div class="popup-info"><span class="popup-label">${label}:</span> ${value}</div>`;
                                 }
                             }
-                            
-                            new mapboxgl.Popup()
-                                .setLngLat(e.lngLat)
-                                .setHTML(html)
-                                .addTo(map);
+                            new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
                         });
+                        map.on('mouseenter', layerFillId, () => { map.getCanvas().style.cursor = 'pointer'; });
+                        map.on('mouseleave', layerFillId, () => { map.getCanvas().style.cursor = ''; });
 
-                        // Change cursor on hover
-                        map.on('mouseenter', layerFillId, () => {
-                            map.getCanvas().style.cursor = 'pointer';
-                        });
-                        map.on('mouseleave', layerFillId, () => {
-                            map.getCanvas().style.cursor = '';
-                        });
-                        
-                        console.log(`✅ NIS ${province} loaded successfully!`);
                     } catch (error) {
                         console.error(`❌ Error loading NIS for ${province}:`, error);
                     }
@@ -621,120 +726,129 @@
             for (const [province, tilesetId] of Object.entries(TILESET_IDS.cis)) {
                 if (tilesetId) {
                     try {
-                        console.log(`\n🏗️  Loading CIS for ${province}`);
                         const sourceId = `cis-${province.toLowerCase().replace(/\s+/g, '-')}`;
                         const layerFillId = `${sourceId}-fill`;
                         const layerOutlineId = `${sourceId}-outline`;
-
-                        // Get the correct source layer name
                         const sourceLayer = await getSourceLayerName(tilesetId);
-                        console.log(`📊 CIS ${province}: tileset=${tilesetId}, source-layer=${sourceLayer}`);
 
-                        // Add source
-                        map.addSource(sourceId, {
-                            type: 'vector',
-                            url: `mapbox://${tilesetId}`
-                        });
-                        console.log(`✅ Added source: ${sourceId}`);
-
-                        // Add fill layer
-                        map.addLayer({
-                            id: layerFillId,
-                            type: 'fill',
-                            source: sourceId,
-                            'source-layer': sourceLayer,
-                            paint: {
-                                'fill-color': '#2ecc71',
-                                'fill-opacity': 0.6
+                        const layerDefs = [
+                            {
+                                id: layerFillId,
+                                type: 'fill',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'fill-color': '#2ecc71', 'fill-opacity': 0.6 },
+                                metadata: { province, type: 'cis' }
                             },
-                            metadata: {
-                                province: province,
-                                type: 'cis'
+                            {
+                                id: layerOutlineId,
+                                type: 'line',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'line-color': '#27ae60', 'line-width': 2 },
+                                metadata: { province, type: 'cis' }
                             }
-                        });
-                        console.log(`✅ Added fill layer: ${layerFillId}`);
+                        ];
 
-                        // Add outline layer
-                        map.addLayer({
-                            id: layerOutlineId,
-                            type: 'line',
-                            source: sourceId,
-                            'source-layer': sourceLayer,
-                            paint: {
-                                'line-color': '#27ae60',
-                                'line-width': 2
-                            },
-                            metadata: {
-                                province: province,
-                                type: 'cis'
-                            }
-                        });
-                        console.log(`✅ Added outline layer: ${layerOutlineId}`);
+                        const entry = { sourceId, tilesetId, sourceLayer, layers: layerDefs, type: 'cis', province };
+                        layerRegistry.push(entry);
+                        addLayerSetToMap(entry);
 
-                        loadedLayers.cis.push({
-                            province: province,
-                            fillId: layerFillId,
-                            outlineId: layerOutlineId
-                        });
+                        loadedLayers.cis.push({ province, fillId: layerFillId, outlineId: layerOutlineId });
 
-                        // Add click event
                         map.on('click', layerFillId, (e) => {
                             if (!e.features || e.features.length === 0) return;
                             const properties = e.features[0].properties;
-                            
                             let html = '<div class="popup-title">Communal Irrigation System</div>';
                             html += `<div class="popup-info"><span class="popup-label">Province:</span> ${province}</div>`;
-                            
                             for (const [key, value] of Object.entries(properties)) {
                                 if (value && key !== 'id') {
-                                    const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                    const label = formatFieldLabel(key);
                                     html += `<div class="popup-info"><span class="popup-label">${label}:</span> ${value}</div>`;
                                 }
                             }
-                            
-                            new mapboxgl.Popup()
-                                .setLngLat(e.lngLat)
-                                .setHTML(html)
-                                .addTo(map);
+                            new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
                         });
+                        map.on('mouseenter', layerFillId, () => { map.getCanvas().style.cursor = 'pointer'; });
+                        map.on('mouseleave', layerFillId, () => { map.getCanvas().style.cursor = ''; });
 
-                        // Change cursor on hover
-                        map.on('mouseenter', layerFillId, () => {
-                            map.getCanvas().style.cursor = 'pointer';
-                        });
-                        map.on('mouseleave', layerFillId, () => {
-                            map.getCanvas().style.cursor = '';
-                        });
-                        
-                        console.log(`✅ CIS ${province} loaded successfully!`);
                     } catch (error) {
                         console.error(`❌ Error loading CIS for ${province}:`, error);
                     }
                 }
             }
 
-            document.getElementById('loading').classList.remove('active');
-            console.log('\n🎉 === ALL LAYERS LOADED ===');
-            console.log('If you don\'t see data on the map, check the error messages above');
-            console.log('Total NIS layers:', loadedLayers.nis.length);
-            console.log('Total CIS layers:', loadedLayers.cis.length);
-        });
+            // Load NET PIA tilesets
+            const NET_PIA_COLORS = {
+                '0-3': { fill: '#3498db', outline: '#2980b9' },
+                '3-8': { fill: '#f1c40f', outline: '#d4ac0d' }
+            };
 
-        // Layer toggles
-        document.getElementById('provinces-toggle').addEventListener('change', (e) => {
-            const visibility = e.target.checked ? 'visible' : 'none';
-            map.setLayoutProperty('provinces-outline', 'visibility', visibility);
+            for (const [range, tilesetId] of Object.entries(TILESET_IDS.net_pia)) {
+                if (tilesetId) {
+                    try {
+                        const sourceId = `net-pia-${range}`;
+                        const layerFillId = `${sourceId}-fill`;
+                        const layerOutlineId = `${sourceId}-outline`;
+                        const sourceLayer = await getSourceLayerName(tilesetId);
+                        const colors = NET_PIA_COLORS[range];
+
+                        const layerDefs = [
+                            {
+                                id: layerFillId,
+                                type: 'fill',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'fill-color': colors.fill, 'fill-opacity': 0.6 },
+                                metadata: { range, type: 'net_pia' }
+                            },
+                            {
+                                id: layerOutlineId,
+                                type: 'line',
+                                source: sourceId,
+                                'source-layer': sourceLayer,
+                                paint: { 'line-color': colors.outline, 'line-width': 2 },
+                                metadata: { range, type: 'net_pia' }
+                            }
+                        ];
+
+                        const entry = { sourceId, tilesetId, sourceLayer, layers: layerDefs, type: 'net_pia', range };
+                        layerRegistry.push(entry);
+                        addLayerSetToMap(entry);
+
+                        loadedLayers.net_pia.push({ range, fillId: layerFillId, outlineId: layerOutlineId });
+
+                        map.on('click', layerFillId, (e) => {
+                            if (!e.features || e.features.length === 0) return;
+                            const properties = e.features[0].properties;
+                            let html = `<div class="popup-title">NET PIA ${range}</div>`;
+                            for (const [key, value] of Object.entries(properties)) {
+                                if (value && key !== 'id') {
+                                    const label = formatFieldLabel(key);
+                                    html += `<div class="popup-info"><span class="popup-label">${label}:</span> ${value}</div>`;
+                                }
+                            }
+                            new mapboxgl.Popup().setLngLat(e.lngLat).setHTML(html).addTo(map);
+                        });
+                        map.on('mouseenter', layerFillId, () => { map.getCanvas().style.cursor = 'pointer'; });
+                        map.on('mouseleave', layerFillId, () => { map.getCanvas().style.cursor = ''; });
+
+                    } catch (error) {
+                        console.error(`❌ Error loading NET PIA ${range}:`, error);
+                    }
+                }
+            }
+
+            document.getElementById('loading').classList.remove('active');
+            console.log('🎉 All layers loaded. NIS:', loadedLayers.nis.length, '| CIS:', loadedLayers.cis.length, '| NET PIA:', loadedLayers.net_pia.length);
         });
 
         // NIS province filter functionality
         function updateNISFilter() {
             const activeProvinces = [];
             document.querySelectorAll('.nis-province-filter').forEach(checkbox => {
-                if (checkbox.checked) {
-                    activeProvinces.push(checkbox.dataset.province);
-                }
+                if (checkbox.checked) activeProvinces.push(checkbox.dataset.province);
             });
-
             loadedLayers.nis.forEach(layer => {
                 const visibility = activeProvinces.includes(layer.province) ? 'visible' : 'none';
                 map.setLayoutProperty(layer.fillId, 'visibility', visibility);
@@ -746,13 +860,23 @@
         function updateCISFilter() {
             const activeProvinces = [];
             document.querySelectorAll('.cis-province-filter').forEach(checkbox => {
-                if (checkbox.checked) {
-                    activeProvinces.push(checkbox.dataset.province);
-                }
+                if (checkbox.checked) activeProvinces.push(checkbox.dataset.province);
             });
-
             loadedLayers.cis.forEach(layer => {
                 const visibility = activeProvinces.includes(layer.province) ? 'visible' : 'none';
+                map.setLayoutProperty(layer.fillId, 'visibility', visibility);
+                map.setLayoutProperty(layer.outlineId, 'visibility', visibility);
+            });
+        }
+
+        // NET PIA filter functionality
+        function updateNETPIAFilter() {
+            const activeRanges = [];
+            document.querySelectorAll('.net-pia-filter').forEach(checkbox => {
+                if (checkbox.checked) activeRanges.push(checkbox.dataset.range);
+            });
+            loadedLayers.net_pia.forEach(layer => {
+                const visibility = activeRanges.includes(layer.range) ? 'visible' : 'none';
                 map.setLayoutProperty(layer.fillId, 'visibility', visibility);
                 map.setLayoutProperty(layer.outlineId, 'visibility', visibility);
             });
@@ -768,9 +892,230 @@
             checkbox.addEventListener('change', updateCISFilter);
         });
 
+        // Add event listeners to NET PIA checkboxes
+        document.querySelectorAll('.net-pia-filter').forEach(checkbox => {
+            checkbox.addEventListener('change', updateNETPIAFilter);
+        });
+
         // Add navigation controls
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
         map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+        // ─── DRAW TOOL ───────────────────────────────────────────────
+        const Draw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: {},
+            styles: [
+                {
+                    id: 'gl-draw-polygon-fill',
+                    type: 'fill',
+                    filter: ['all', ['==', '$type', 'Polygon']],
+                    paint: { 'fill-color': '#9b59b6', 'fill-opacity': 0.2 }
+                },
+                {
+                    id: 'gl-draw-polygon-stroke',
+                    type: 'line',
+                    filter: ['all', ['==', '$type', 'Polygon']],
+                    paint: { 'line-color': '#9b59b6', 'line-width': 2 }
+                },
+                {
+                    id: 'gl-draw-polygon-midpoint',
+                    type: 'circle',
+                    filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'midpoint']],
+                    paint: { 'circle-radius': 4, 'circle-color': '#9b59b6' }
+                },
+                {
+                    id: 'gl-draw-polygon-vertex',
+                    type: 'circle',
+                    filter: ['all', ['==', '$type', 'Point'], ['==', 'meta', 'vertex']],
+                    paint: { 'circle-radius': 5, 'circle-color': '#fff', 'circle-stroke-color': '#9b59b6', 'circle-stroke-width': 2 }
+                }
+            ]
+        });
+        map.addControl(Draw, 'top-right');
+
+        let analysisGeometry = null; // GeoJSON polygon/multipolygon to test
+        let isDrawing = false;
+
+        // ─── OVERLAP CHECK ────────────────────────────────────────────
+        function runOverlapCheck(geojsonFeature) {
+            analysisGeometry = geojsonFeature;
+            const resultsPanel = document.getElementById('results-panel');
+            const resultsContent = document.getElementById('results-content');
+            resultsContent.innerHTML = '';
+
+            const hits = [];
+
+            // Check each active NIS layer
+            loadedLayers.nis.forEach(layer => {
+                const cb = document.querySelector(`.nis-province-filter[data-province="${layer.province}"]`);
+                if (!cb || !cb.checked) return;
+                const sourceId = `nis-${layer.province.toLowerCase().replace(/\s+/g, '-')}`;
+                const entry = layerRegistry.find(e => e.sourceId === sourceId);
+                if (!entry) return;
+                const features = map.querySourceFeatures(sourceId, { sourceLayer: entry.sourceLayer });
+                const seen = new Set();
+                let overlapping = 0;
+                features.forEach(f => {
+                    const key = f.id ?? JSON.stringify(f.geometry.coordinates[0][0]);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    try {
+                        if (turf.booleanIntersects(geojsonFeature, f)) overlapping++;
+                    } catch(e) {}
+                });
+                if (overlapping > 0) {
+                    hits.push({ label: `NIS – ${layer.province}`, count: overlapping, type: 'nis' });
+                }
+            });
+
+            // Check each active CIS layer
+            loadedLayers.cis.forEach(layer => {
+                const cb = document.querySelector(`.cis-province-filter[data-province="${layer.province}"]`);
+                if (!cb || !cb.checked) return;
+                const sourceId = `cis-${layer.province.toLowerCase().replace(/\s+/g, '-')}`;
+                const entry = layerRegistry.find(e => e.sourceId === sourceId);
+                if (!entry) return;
+                const features = map.querySourceFeatures(sourceId, { sourceLayer: entry.sourceLayer });
+                const seen = new Set();
+                let overlapping = 0;
+                features.forEach(f => {
+                    const key = f.id ?? JSON.stringify(f.geometry.coordinates[0][0]);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    try {
+                        if (turf.booleanIntersects(geojsonFeature, f)) overlapping++;
+                    } catch(e) {}
+                });
+                if (overlapping > 0) {
+                    hits.push({ label: `CIS – ${layer.province}`, count: overlapping, type: 'cis' });
+                }
+            });
+
+            if (hits.length === 0) {
+                resultsContent.innerHTML = '<div class="overlap-none">No overlaps found with active layers.</div>';
+            } else {
+                const total = hits.reduce((s, h) => s + h.count, 0);
+                resultsContent.innerHTML = `<div class="overlap-count">⚠️ ${total} feature(s) overlap found</div>`;
+                hits.forEach(h => {
+                    const color = h.type === 'nis' ? '#e74c3c' : '#2ecc71';
+                    resultsContent.innerHTML += `
+                        <div class="overlap-item overlap-hit" style="border-left-color:${color}">
+                            <strong>${h.label}</strong><br>${h.count} feature(s) overlap
+                        </div>`;
+                });
+            }
+
+            resultsPanel.classList.add('visible');
+        }
+
+        // ─── DRAW EVENTS ──────────────────────────────────────────────
+        const btnDraw = document.getElementById('btn-draw-polygon');
+
+        btnDraw.addEventListener('click', () => {
+            if (isDrawing) {
+                Draw.changeMode('simple_select');
+                btnDraw.textContent = '✏️ Draw Polygon';
+                btnDraw.classList.remove('active');
+                isDrawing = false;
+            } else {
+                Draw.deleteAll();
+                Draw.changeMode('draw_polygon');
+                btnDraw.textContent = '⏹ Stop Drawing';
+                btnDraw.classList.add('active');
+                isDrawing = true;
+            }
+        });
+
+        map.on('draw.create', (e) => {
+            btnDraw.textContent = '✏️ Draw Polygon';
+            btnDraw.classList.remove('active');
+            isDrawing = false;
+            const feature = e.features[0];
+            runOverlapCheck(feature);
+        });
+
+        map.on('draw.update', (e) => {
+            runOverlapCheck(e.features[0]);
+        });
+
+        // ─── KML UPLOAD ───────────────────────────────────────────────
+        document.getElementById('btn-upload-kml').addEventListener('click', () => {
+            document.getElementById('kml-file-input').click();
+        });
+
+        document.getElementById('kml-file-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById('kml-filename').textContent = `📄 ${file.name}`;
+
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const kmlText = evt.target.result;
+                    const parser = new DOMParser();
+                    const kmlDoc = parser.parseFromString(kmlText, 'text/xml');
+                    const geojson = toGeoJSON.kml(kmlDoc);
+
+                    // Remove old KML layer if present
+                    if (map.getLayer('kml-layer-fill')) map.removeLayer('kml-layer-fill');
+                    if (map.getLayer('kml-layer-outline')) map.removeLayer('kml-layer-outline');
+                    if (map.getSource('kml-upload')) map.removeSource('kml-upload');
+
+                    map.addSource('kml-upload', { type: 'geojson', data: geojson });
+                    map.addLayer({
+                        id: 'kml-layer-fill',
+                        type: 'fill',
+                        source: 'kml-upload',
+                        filter: ['==', '$type', 'Polygon'],
+                        paint: { 'fill-color': '#f39c12', 'fill-opacity': 0.25 }
+                    });
+                    map.addLayer({
+                        id: 'kml-layer-outline',
+                        type: 'line',
+                        source: 'kml-upload',
+                        paint: { 'line-color': '#f39c12', 'line-width': 2 }
+                    });
+
+                    // Zoom to KML extent
+                    const bbox = turf.bbox(geojson);
+                    map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 60 });
+
+                    // Use union of all polygons for overlap check
+                    const polygons = geojson.features.filter(f =>
+                        f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
+                    );
+                    if (polygons.length > 0) {
+                        // Wait for tiles to load after fitBounds, then check
+                        map.once('idle', () => {
+                            const combined = polygons.length === 1
+                                ? polygons[0]
+                                : turf.union(...polygons);
+                            runOverlapCheck(combined);
+                        });
+                    }
+                } catch (err) {
+                    alert('Failed to parse KML: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            e.target.value = '';
+        });
+
+        // ─── CLEAR ────────────────────────────────────────────────────
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            Draw.deleteAll();
+            if (map.getLayer('kml-layer-fill')) map.removeLayer('kml-layer-fill');
+            if (map.getLayer('kml-layer-outline')) map.removeLayer('kml-layer-outline');
+            if (map.getSource('kml-upload')) map.removeSource('kml-upload');
+            document.getElementById('kml-filename').textContent = '';
+            document.getElementById('results-panel').classList.remove('visible');
+            document.getElementById('results-content').innerHTML = '';
+            btnDraw.textContent = '✏️ Draw Polygon';
+            btnDraw.classList.remove('active');
+            isDrawing = false;
+            analysisGeometry = null;
+        });
     </script>
 </body>
 </html>
