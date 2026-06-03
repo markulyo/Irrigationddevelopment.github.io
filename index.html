@@ -65,6 +65,7 @@
             z-index: 1;
             max-height: calc(100vh - 140px);
             overflow-y: auto;
+            touch-action: pan-y;
         }
 
         .control-panel h3 {
@@ -234,6 +235,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             width: 260px;
             z-index: 1;
+            touch-action: pan-y;
         }
 
         .analysis-panel h3 {
@@ -900,6 +902,16 @@
         // Add event listeners to NET PIA checkboxes
         document.querySelectorAll('.net-pia-filter').forEach(checkbox => {
             checkbox.addEventListener('change', updateNETPIAFilter);
+        });
+
+        // Prevent map from capturing touch events on UI panels (tablet fix)
+        ['.control-panel', '.analysis-panel', '.legend', '.header'].forEach(sel => {
+            const el = document.querySelector(sel);
+            if (el) {
+                el.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+                el.addEventListener('touchmove',  e => e.stopPropagation(), { passive: true });
+                el.addEventListener('touchend',   e => e.stopPropagation(), { passive: true });
+            }
         });
 
         // Add navigation controls
