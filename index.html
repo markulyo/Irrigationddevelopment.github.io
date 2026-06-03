@@ -281,11 +281,15 @@
                 left: 0;
                 width: 85vw;
                 max-width: 320px;
+                height: 100vh;
                 max-height: 100vh;
                 border-radius: 0 12px 12px 0;
                 z-index: 9;
                 transform: translateX(-110%);
                 transition: transform 0.3s ease;
+                overflow-y: scroll;
+                -webkit-overflow-scrolling: touch;
+                padding-bottom: 80px;
             }
             .control-panel.open {
                 transform: translateX(0);
@@ -803,7 +807,10 @@
                                 'text-font': ['Open Sans Semibold', 'Arial Unicode MS Bold'],
                                 'text-size': 12,
                                 'text-anchor': 'center',
-                                'text-allow-overlap': false
+                                'text-allow-overlap': false,
+                                'text-ignore-placement': false,
+                                'symbol-avoid-edges': true,
+                                'text-padding': 50
                             },
                             paint: {
                                 'text-color': '#ffffff',
