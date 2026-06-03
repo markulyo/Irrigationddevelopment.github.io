@@ -97,8 +97,9 @@
         .layer-item input[type="checkbox"] {
             margin-right: 10px;
             cursor: pointer;
-            width: 18px;
-            height: 18px;
+            width: 22px;
+            height: 22px;
+            min-width: 22px;
         }
 
         .layer-item label {
@@ -904,14 +905,25 @@
             checkbox.addEventListener('change', updateNETPIAFilter);
         });
 
-        // Prevent map from capturing touch events on UI panels (tablet fix)
+        // Disable map touch handlers when interacting with UI panels (tablet fix)
         ['.control-panel', '.analysis-panel', '.legend', '.header'].forEach(sel => {
             const el = document.querySelector(sel);
-            if (el) {
-                el.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
-                el.addEventListener('touchmove',  e => e.stopPropagation(), { passive: true });
-                el.addEventListener('touchend',   e => e.stopPropagation(), { passive: true });
-            }
+            if (!el) return;
+            el.addEventListener('touchstart', () => {
+                map.dragPan.disable();
+                map.touchZoomRotate.disable();
+                map.scrollZoom.disable();
+            }, { passive: true });
+            el.addEventListener('touchend', () => {
+                map.dragPan.enable();
+                map.touchZoomRotate.enable();
+                map.scrollZoom.enable();
+            }, { passive: true });
+            el.addEventListener('touchcancel', () => {
+                map.dragPan.enable();
+                map.touchZoomRotate.enable();
+                map.scrollZoom.enable();
+            }, { passive: true });
         });
 
         // Add navigation controls
