@@ -58,13 +58,22 @@
             top: 120px;
             left: 20px;
             background: white;
-            padding: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
             max-width: 300px;
             z-index: 1;
             max-height: calc(100vh - 140px);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-scroll-inner {
             overflow-y: auto;
+            overflow-x: hidden;
+            padding: 20px;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
             touch-action: pan-y;
         }
 
@@ -287,12 +296,17 @@
                 z-index: 9;
                 transform: translateX(-110%);
                 transition: transform 0.3s ease;
-                overflow-y: scroll;
-                -webkit-overflow-scrolling: touch;
-                padding-bottom: 80px;
+                overflow: hidden;
             }
             .control-panel.open {
                 transform: translateX(0);
+            }
+            .panel-scroll-inner {
+                height: 100%;
+                overflow-y: scroll !important;
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y;
+                padding-bottom: 80px;
             }
 
             .analysis-panel {
@@ -463,6 +477,7 @@
     </div>
 
     <div class="control-panel">
+      <div class="panel-scroll-inner">
         <h3>Layer Controls</h3>
         
         <h3 style="margin-top: 20px;">National Irrigation Systems</h3>
@@ -568,6 +583,7 @@
                 </label>
             </div>
         </div>
+      </div><!-- end panel-scroll-inner -->
     </div>
 
     <input type="file" id="kml-file-input" accept=".kml">
@@ -1072,7 +1088,7 @@
             map.scrollZoom.disable();
         }
 
-        ['.control-panel', '.analysis-panel', '.legend', '.header'].forEach(sel => {
+        ['.panel-scroll-inner', '.analysis-panel', '.legend', '.header'].forEach(sel => {
             const el = document.querySelector(sel);
             if (!el) return;
             el.addEventListener('touchstart', disableMapTouch, { passive: true });
