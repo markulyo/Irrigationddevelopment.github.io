@@ -438,20 +438,20 @@
             </div>
         </div>
 
-        <h3 style="margin-top: 20px;">NET PIA Layers</h3>
+        <h3 style="margin-top: 20px;">PIA Layers</h3>
         <div class="layer-control">
             <div class="layer-item">
-                <input type="checkbox" id="net-pia-0-3-toggle" class="net-pia-filter" data-range="0-3" checked>
+                <input type="checkbox" id="net-pia-0-3-toggle" class="net-pia-filter" data-range="slope_0_3">
                 <label for="net-pia-0-3-toggle">
                     <div class="color-box" style="background: rgba(52, 152, 219, 0.6);"></div>
-                    NET PIA 0-3
+                    NET PIA 0-3% Slope
                 </label>
             </div>
             <div class="layer-item">
-                <input type="checkbox" id="net-pia-3-8-toggle" class="net-pia-filter" data-range="3-8" checked>
+                <input type="checkbox" id="net-pia-3-8-toggle" class="net-pia-filter" data-range="slope_3_8">
                 <label for="net-pia-3-8-toggle">
                     <div class="color-box" style="background: rgba(241, 196, 15, 0.6);"></div>
-                    NET PIA 3-8
+                    NET PIA 3-8% Slope
                 </label>
             </div>
         </div>
@@ -522,8 +522,8 @@
                 'Palawan': 'markulyo.1po8cpyssdt3'
             },
             net_pia: {
-                '0-3': 'markulyo.5hinm3056b20'
-                '3-8': 'markulyo.tkts0aog1uz9'
+                'slope_0_3': 'markulyo.5hinm3056b20',
+                'slope_3_8': 'markulyo.tkts0aog1uz9'
             }
         };
 
@@ -605,9 +605,12 @@
                 // Restore visibility from checkbox state
                 if (layerDef.metadata && layerDef.metadata.type) {
                     const type = layerDef.metadata.type;
-                    const province = layerDef.metadata.province;
-                    const selector = `.${type}-province-filter[data-province="${province}"]`;
-                    const cb = document.querySelector(selector);
+                    let cb = null;
+                    if (type === 'net_pia') {
+                        cb = document.querySelector(`.net-pia-filter[data-range="${layerDef.metadata.range}"]`);
+                    } else {
+                        cb = document.querySelector(`.${type}-province-filter[data-province="${layerDef.metadata.province}"]`);
+                    }
                     if (cb) {
                         map.setLayoutProperty(layerDef.id, 'visibility', cb.checked ? 'visible' : 'none');
                     }
@@ -780,8 +783,8 @@
 
             // Load NET PIA tilesets
             const NET_PIA_COLORS = {
-                '0-3': { fill: '#3498db', outline: '#2980b9' },
-                '3-8': { fill: '#f1c40f', outline: '#d4ac0d' }
+                'slope_0_3': { fill: '#3498db', outline: '#2980b9' },
+                'slope_3_8': { fill: '#f1c40f', outline: '#d4ac0d' }
             };
 
             for (const [range, tilesetId] of Object.entries(TILESET_IDS.net_pia)) {
@@ -799,16 +802,18 @@
                                 type: 'fill',
                                 source: sourceId,
                                 'source-layer': sourceLayer,
+                                layout: { visibility: 'none' },
                                 paint: { 'fill-color': colors.fill, 'fill-opacity': 0.6 },
-                                metadata: { range, type: 'net_pia' }
+                                metadata: { range: range, type: 'net_pia' }
                             },
                             {
                                 id: layerOutlineId,
                                 type: 'line',
                                 source: sourceId,
                                 'source-layer': sourceLayer,
+                                layout: { visibility: 'none' },
                                 paint: { 'line-color': colors.outline, 'line-width': 2 },
-                                metadata: { range, type: 'net_pia' }
+                                metadata: { range: range, type: 'net_pia' }
                             }
                         ];
 
