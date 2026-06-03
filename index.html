@@ -579,6 +579,48 @@
             return fallback;
         }
 
+        // Show popup on tap for tablet support
+        function showPopupAt(lngLat, html) {
+            new mapboxgl.Popup().setLngLat(lngLat).setHTML(html).addTo(map);
+        }
+
+        function buildPopupHTML(title, properties) {
+            let html = `<div class="popup-title">${title}</div>`;
+            for (const [key, value] of Object.entries(properties)) {
+                if (value && key !== 'id') {
+                    html += `<div class="popup-info"><span class="popup-label">${formatFieldLabel(key)}:</span> ${value}</div>`;
+                }
+            }
+            return html;
+        }
+
+        // Tablet tap-to-popup: query features under touch point
+        map.on('touchend', (e) => {
+            if (e.originalEvent.touches.length > 0) return; // still touching
+            const point = e.point;
+            const allFillLayers = [
+                ...loadedLayers.nis.map(l => ({ id: l.fillId, title: `National Irrigation System`, subtitle: l.province })),
+                ...loadedLayers.cis.map(l => ({ id: l.fillId, title: `Communal Irrigation System`, subtitle: l.province })),
+                ...loadedLayers.net_pia.map(l => ({ id: l.fillId, title: `PIA ${l.range}`, subtitle: null }))
+            ].filter(l => map.getLayer(l.id));
+
+            const layerIds = allFillLayers.map(l => l.id);
+            if (!layerIds.length) return;
+
+            const features = map.queryRenderedFeatures(point, { layers: layerIds });
+            if (!features.length) return;
+
+            const feature = features[0];
+            const match = allFillLayers.find(l => l.id === feature.layer.id);
+            if (!match) return;
+
+            let html = `<div class="popup-title">${match.title}</div>`;
+            if (match.subtitle) html += `<div class="popup-info"><span class="popup-label">Province:</span> ${match.subtitle}</div>`;
+            html += buildPopupHTML('', feature.properties).replace('<div class="popup-title"></div>', '');
+
+            showPopupAt(e.lngLat, html);
+        });
+
         // Field name overrides for popups
         const FIELD_LABELS = {
             'NAME_2': 'Municipality',
@@ -906,25 +948,27 @@
         });
 
         // Disable map touch handlers when interacting with UI panels (tablet fix)
+        function enableMapTouch() {
+            map.dragPan.enable();
+            map.touchZoomRotate.enable();
+            map.scrollZoom.enable();
+        }
+        function disableMapTouch() {
+            map.dragPan.disable();
+            map.touchZoomRotate.disable();
+            map.scrollZoom.disable();
+        }
+
         ['.control-panel', '.analysis-panel', '.legend', '.header'].forEach(sel => {
             const el = document.querySelector(sel);
             if (!el) return;
-            el.addEventListener('touchstart', () => {
-                map.dragPan.disable();
-                map.touchZoomRotate.disable();
-                map.scrollZoom.disable();
-            }, { passive: true });
-            el.addEventListener('touchend', () => {
-                map.dragPan.enable();
-                map.touchZoomRotate.enable();
-                map.scrollZoom.enable();
-            }, { passive: true });
-            el.addEventListener('touchcancel', () => {
-                map.dragPan.enable();
-                map.touchZoomRotate.enable();
-                map.scrollZoom.enable();
-            }, { passive: true });
+            el.addEventListener('touchstart', disableMapTouch, { passive: true });
+            el.addEventListener('touchend',   enableMapTouch,  { passive: true });
+            el.addEventListener('touchcancel',enableMapTouch,  { passive: true });
         });
+
+        // Failsafe: always re-enable on document touchend
+        document.addEventListener('touchend', enableMapTouch, { passive: true });
 
         // Add navigation controls
         map.addControl(new mapboxgl.NavigationControl(), 'top-right');
